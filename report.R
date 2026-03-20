@@ -2,7 +2,13 @@
 #####################################
 
 #### install dependencies ####
-# install.packages()
+install.packages(c("skimr",
+                   "dplyr",
+                   "rsample",
+                   "mlr3verse",
+                   "xgboost",
+                   "recipes",
+                   "keras3"))
 
 #### load data ####
 heartfailure <- read.csv("https://www.maths.dur.ac.uk/users/hailiang.du/assignment_data/heart_failure.csv", header=TRUE)
@@ -16,8 +22,11 @@ dim(heartfailure)
 library(skimr)
 skim(heartfailure)
 
+# ensure fatal_mi is a factor 
+heartfailure$fatal_mi <- factor(heartfailure$fatal_mi)
+
 # no missing values 
-DataExplorer::plot_bar(heartfailure, by = "fatal_mi")
+DataExplorer::plot_bar(heartfailure, order_bar=FALSE)
 # DataExplorer::plot_histogram(heartfailure)
 DataExplorer::plot_boxplot(heartfailure, by = "fatal_mi", ncol = 3) # alternative to hist for numeric
 
@@ -41,8 +50,6 @@ set.seed(123)
 
 ### preprocessing 
 library("rsample")
-# ensure fatal_mi is a factor 
-heartfailure$fatal_mi <- factor(heartfailure$fatal_mi)
 
 # use train-validate-test 70-15-15
 heart_split <- initial_split(heartfailure, prop=0.70)
@@ -277,6 +284,18 @@ deep.net3 |> fit(
 lrn_forest$train(heart_task)
 heart_test_task <- TaskClassif$new("test", backend = heart_test_no_preprocessing, target = "fatal_mi", positive = '1')
 pred <- lrn_forest$predict(heart_test_task)
+pred
+pred$score(list(msr("classif.acc"),
+                msr("classif.fnr"),  # small FNR same as high recall 
+                msr("classif.auc"),
+                msr("classif.fpr"),
+                msr("classif.ce")))
+
+# set lower threshold to reduce FNR
+pred$set_threshold(0.3) 
+pred
+# change the threshold to lower FNR
+
 pred$score(list(msr("classif.acc"),
                 msr("classif.fnr"),  # small FNR same as high recall 
                 msr("classif.auc"),
@@ -285,5 +304,6 @@ pred$score(list(msr("classif.acc"),
 pred$confusion
 
 
-
+# library(mlr3viz)
+# autoplot(pred, type = "roc")
 
